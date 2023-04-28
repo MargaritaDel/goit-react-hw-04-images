@@ -1,0 +1,138 @@
+
+import { Component } from 'react';
+import fetchImagesWithQuery from 'services/api';
+import {Searchbar} from './Searchbar/Searchbar';
+import {ImageGallery} from './ImageGallery/ImageGallery';
+import {Button} from './Button/Button';
+import {Loader} from './Loader/Loader';
+
+
+
+
+export class App extends Component {
+  state = {
+    images: [],
+    query: '',
+    page: 0,
+    isLoading: false,
+    error: null,
+  };
+
+  async uploadImages() {
+    this.setState({ isLoading: true });
+
+    try {
+      const { totalHits, hits } = await fetchImagesWithQuery(
+        this.state.query,
+        this.state.page
+      );
+      if (!totalHits) {
+        throw new Error('No data');
+      }
+
+      this.setState(p => ({ images: [...p.images, ...hits] }));
+    } catch (error) {
+      this.setState({ error });
+    } finally {
+      this.setState({ isLoading: false });
+    }
+  }
+
+  getSearchQuery = searchQuery => {
+    if (this.state.query !== searchQuery) {
+      this.setState({ query: searchQuery, images: [], page: 1 });
+    }
+  };
+
+  nextPage = () => {
+    this.setState(prevState => ({
+      page: prevState.page + 1,
+    }));
+  };
+
+  componentDidUpdate(_, prevState) {
+    if (
+      prevState.page !== this.state.page ||
+      prevState.query !== this.state.query
+    ) {
+      this.uploadImages();
+    }
+  }
+
+  render() {
+    const { query, page, images, isLoading } = this.state;
+    const isShowGallery = images.length > 0 && query;
+    const isShowButton = isShowGallery && !isLoading && !(images.length % 12);
+    return (
+      <>
+        <Searchbar onSubmit={this.getSearchQuery} />
+        {isShowGallery && <ImageGallery images={images} page={page} />}
+        {isShowButton && <Button onClick={this.nextPage} />}
+        {isLoading && <Loader />}
+      </>
+    );
+  }
+}
+
+
+import { useState, useEffect } from 'react';
+import fetchImagesWithQuery from 'services/api';
+import { Searchbar } from './Searchbar/Searchbar';
+import { ImageGallery } from './ImageGallery/ImageGallery';
+import { Button } from './Button/Button';
+import { Loader } from './Loader/Loader';
+
+export function App() {
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function uploadImages() {
+    setIsLoading(true);
+
+    try {
+      const { totalHits, hits } = await fetchImagesWithQuery(query, page);
+      if (!totalHits) {
+        throw new Error('No data');
+      }
+
+      setImages(prevImages => [...prevImages, ...hits]);
+    } catch (error) {
+      setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function getSearchQuery(searchQuery) {
+    if (query !== searchQuery) {
+      setQuery(searchQuery);
+      setImages([]);
+      setPage(1);
+    }
+  }
+
+  function nextPage() {
+    setPage(prevPage => prevPage + 1);
+  }
+
+  useEffect(() => {
+    if (page !== 0) {
+      uploadImages();
+    }
+  }, [page, query]);
+
+  const isShowGallery = images.length > 0 && query;
+  const isShowButton = isShowGallery && !isLoading && !(images.length % 12);
+
+  return (
+    <>
+      <Searchbar onSubmit={getSearchQuery} />
+      {isShowGallery && <ImageGallery images={images} page={page} />}
+      {isShowButton && <Button onClick={nextPage} />}
+      {isLoading && <Loader />}
+    </>
+  );
+}
